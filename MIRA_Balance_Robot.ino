@@ -21,8 +21,16 @@ void setup() {
 
   motorInit();
 
-  // Seed the Kalman filter with a real reading instead of 0, so it
-  // doesn't start by "correcting" a fake angle for the first few cycles.
+  // Hold the robot still and vertical while this runs (~1 second) --
+  // it measures and stores the gyro's at-rest offset and the
+  // accelerometer's at-rest angle offset. Without this, every angle
+  // reading has a built-in error that no amount of Kalman/fuzzy tuning
+  // can fix, because the filter would just be tracking a biased signal.
+  imuCalibrate();
+
+  // Seed the Kalman filter with a real (now-calibrated) reading instead
+  // of 0, so it doesn't start by "correcting" a fake angle for the
+  // first few cycles.
   IMUData firstReading = imuRead();
   kalman.setAngle(firstReading.accelAngle);
 

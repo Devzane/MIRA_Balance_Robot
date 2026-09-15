@@ -19,6 +19,14 @@ bool imuInit();
 // Reads accel + gyro and returns the pitch angle estimate from the
 // accelerometer alone, plus the raw gyro rate. This does NOT filter
 // anything -- that's the Kalman filter's job, in KalmanFilter.h.
+// Returned values already have the calibration offsets (below) applied.
 IMUData imuRead();
+
+// Averages a batch of samples to find the gyro's at-rest offset and the
+// accelerometer's at-rest angle offset, and stores them for imuRead() to
+// subtract automatically from then on. Call this ONCE in setup(), with
+// the robot held still and as close to your intended balance position
+// as possible (usually vertical). Blocks for about numSamples * 5ms.
+void imuCalibrate(int numSamples = 200);
 
 #endif

@@ -18,27 +18,15 @@ static int16_t readWord(uint8_t highReg) {
   return value;
 }
 
-bool imuInit() {
-  // Wake the sensor up: write 0x00 to the power management register.
-  Wire.beginTransmission(MPU6050_ADDR);
-  Wire.write(REG_PWR_MGMT_1);
-  Wire.write(0x00);
-  uint8_t err = Wire.endTransmission(true);
+static float gyroOffset = 0.0f;   // deg/s, subtracted from every gyro reading
+static float angleOffset = 0.0f;  // degrees, subtracted from every accel angle
 
-  // Sanity check: WHO_AM_I should read back the device's I2C address (0x68).
-  Wire.beginTransmission(MPU6050_ADDR);
-  Wire.write(REG_WHO_AM_I);
-  Wire.endTransmission(false);
-  Wire.requestFrom((int)MPU6050_ADDR, 1, true);
-  uint8_t who = Wire.read();
-
-  return (err == 0) && (who == MPU6050_ADDR);
-}
-
-IMUData imuRead() {
+// Reads accel+gyro and returns UNCALIBRATED values -- used internally by
+// both imuRead() (which applies the offsets) and imuCalibrate() (which is
+// busy measuring what the offsets should be, so it can't use them yet).
+static IMUData imuReadRaw() {
   IMUData data;
 
-  // Burst-read all 6 accel bytes starting at ACCEL_XOUT_H.
   Wire.beginTransmission(MPU6050_ADDR);
   Wire.write(REG_ACCEL_XOUT_H);
   Wire.endTransmission(false);
@@ -57,13 +45,54 @@ IMUData imuRead() {
   float ay = rawAy / ACCEL_SENSITIVITY;
   float az = rawAz / ACCEL_SENSITIVITY;
 
-  // Pitch angle from accelerometer geometry alone. Noisy on its own
-  // (vibration shows up directly), which is exactly why we feed this
-  // into the Kalman filter rather than using it directly.
   float angle = atan2(ax, sqrt(ay * ay + az * az)) * 180.0f / PI;
 
   data.accelAngle = ACCEL_ANGLE_SIGN * angle;
   data.gyroRate   = GYRO_RATE_SIGN * (rawGy / GYRO_SENSITIVITY);
 
   return data;
+}
+
+bool imuInit() {
+  // Wake the sensor up: write 0x00 to the power management register.
+  Wire.beginTransmission(MPU6050_ADDR);
+  Wire.write(REG_PWR_MGMT_1);
+  Wire.write(0x00);
+  uint8_t err = Wire.endTransmission(true);
+
+  // Sanity check: WHO_AM_I should read back the device's I2C address (0x68).
+  Wire.beginTransmission(MPU6050_ADDR);
+  Wire.write(REG_WHO_AM_I);
+  Wire.endTransmission(false);
+  Wire.requestFrom((int)MPU6050_ADDR, 1, true);
+  uint8_t who = Wire.read();
+
+  return (err == 0) && (who == MPU6050_ADDR);
+}
+
+IMUData imuRead() {
+  IMUData data = imuReadRaw();
+  data.gyroRate    -= gyroOffset;
+  data.accelAngle  -= angleOffset;
+  return data;
+}
+
+void imuCalibrate(int numSamples) {
+  float gyroSum = 0.0f;
+  float angleSum = 0.0f;
+
+  Serial.println("Calibrating IMU -- keep the robot still and vertical...");
+
+  for (int i = 0; i < numSamples; i++) {
+    IMUData raw = imuReadRaw();
+    gyroSum  += raw.gyroRate;
+    angleSum += raw.accelAngle;
+    delay(5);
+  }
+
+  gyroOffset  = gyroSum / numSamples;
+  angleOffset = angleSum / numSamples;
+
+  Serial.print("Gyro offset: "); Serial.print(gyroOffset);
+  Serial.print(" deg/s   Accel angle offset: "); Serial.println(angleOffset);
 }
