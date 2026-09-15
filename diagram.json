@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "author": "Abdulmuiz",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-mpu6050", "id": "imu1", "top": -140, "left": 260, "attrs": {} },
+    { "type": "chip-l298n", "id": "driver1", "top": 140, "left": 260, "attrs": {} },
+
+    { "type": "wokwi-resistor", "id": "rA1", "top": 260, "left": 420, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-led", "id": "ledA1", "top": 220, "left": 460, "attrs": { "color": "green" } },
+    { "type": "wokwi-resistor", "id": "rA2", "top": 300, "left": 420, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-led", "id": "ledA2", "top": 340, "left": 460, "attrs": { "color": "red" } },
+
+    { "type": "wokwi-resistor", "id": "rB1", "top": 260, "left": 550, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-led", "id": "ledB1", "top": 220, "left": 590, "attrs": { "color": "green" } },
+    { "type": "wokwi-resistor", "id": "rB2", "top": 300, "left": 550, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-led", "id": "ledB2", "top": 340, "left": 590, "attrs": { "color": "red" } }
+  ],
+  "connections": [
+    ["esp:3V3", "imu1:VCC", "red", ["v-20", "h50"]],
+    ["esp:GND.1", "imu1:GND", "black", ["v-10", "h40"]],
+    ["esp:D21", "imu1:SDA", "green", ["v-5", "h30"]],
+    ["esp:D22", "imu1:SCL", "yellow", ["v0", "h20"]],
+
+    ["esp:D27", "driver1:IN1", "orange", ["v10", "h30"]],
+    ["esp:D26", "driver1:IN2", "orange", ["v15", "h35"]],
+    ["esp:D25", "driver1:IN3", "orange", ["v20", "h40"]],
+    ["esp:D33", "driver1:IN4", "orange", ["v25", "h45"]],
+    ["esp:D14", "driver1:EN A", "blue", ["v5", "h25"]],
+    ["esp:D32", "driver1:EN B", "blue", ["v30", "h50"]],
+
+    ["esp:VIN", "driver1:5V", "red", ["v40", "h60"]],
+    ["esp:GND.2", "driver1:GND", "black", ["v45", "h65"]],
+
+    ["driver1:OUT1", "rA1:1", "orange", []],
+    ["rA1:2", "ledA1:A", "orange", []],
+    ["ledA1:C", "driver1:OUT2", "orange", []],
+
+    ["driver1:OUT2", "rA2:1", "orange", []],
+    ["rA2:2", "ledA2:A", "orange", []],
+    ["ledA2:C", "driver1:OUT1", "orange", []],
+
+    ["driver1:OUT3", "rB1:1", "orange", []],
+    ["rB1:2", "ledB1:A", "orange", []],
+    ["ledB1:C", "driver1:OUT4", "orange", []],
+
+    ["driver1:OUT4", "rB2:1", "orange", []],
+    ["rB2:2", "ledB2:A", "orange", []],
+    ["ledB2:C", "driver1:OUT3", "orange", []]
+  ],
+  "dependencies": {
+    "chip-l298n": "github:drf5n/Wokwi-Chip-L298N@1.0.5"
+  }
+}
