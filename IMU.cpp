@@ -1,7 +1,9 @@
+#include <Arduino.h>
 #include <Wire.h>
 #include <math.h>
 #include "IMU.h"
 #include "Config.h"
+
 
 // MPU6050 register addresses
 #define REG_PWR_MGMT_1   0x6B

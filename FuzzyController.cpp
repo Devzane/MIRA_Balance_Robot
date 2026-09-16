@@ -1,30 +1,33 @@
+#include <Arduino.h>
+#include <cmath> // Added to securely use fmin() for the float math
 #include "FuzzyController.h"
 #include "Config.h"
 
+
 FuzzyController::FuzzyController() {
   // Standard diagonal fuzzy-PD rule table. Reading it: if the robot is
-  // leaning hard one way (error = PB) AND still rotating that way
-  // (errorRate = PB), the output should be a hard correction (PB).
-  // If it's leaning one way but already rotating back (error = PB,
-  // errorRate = NB), the correction can be gentler (Z) since it's
+  // leaning hard one way (error = POS_BIG) AND still rotating that way
+  // (errorRate = POS_BIG), the output should be a hard correction (POS_BIG).
+  // If it's leaning one way but already rotating back (error = POS_BIG,
+  // errorRate = NEG_BIG), the correction can be gentler (ZERO) since it's
   // already recovering on its own.
   Level table[NUM_LEVELS][NUM_LEVELS] = {
-    /*              errorRate: NB   NS    Z    PS   PB   */
-    /* error NB */          { NB,  NB,  NB,  NS,   Z },
-    /* error NS */          { NB,  NB,  NS,   Z,  PS },
-    /* error Z  */          { NB,  NS,   Z,  PS,  PB },
-    /* error PS */          { NS,   Z,  PS,  PB,  PB },
-    /* error PB */          {  Z,  PS,  PB,  PB,  PB },
+    /*              errorRate: NEG_BIG    NEG_SMALL  ZERO       POS_SMALL  POS_BIG  */
+    /* error NEG_BIG */      { NEG_BIG,   NEG_BIG,   NEG_BIG,   NEG_SMALL, ZERO },
+    /* error NEG_SMALL */    { NEG_BIG,   NEG_BIG,   NEG_SMALL, ZERO,      POS_SMALL },
+    /* error ZERO  */        { NEG_BIG,   NEG_SMALL, ZERO,      POS_SMALL, POS_BIG },
+    /* error POS_SMALL */    { NEG_SMALL, ZERO,      POS_SMALL, POS_BIG,   POS_BIG },
+    /* error POS_BIG */      { ZERO,      POS_SMALL, POS_BIG,   POS_BIG,   POS_BIG },
   };
   for (int i = 0; i < NUM_LEVELS; i++)
     for (int j = 0; j < NUM_LEVELS; j++)
       ruleTable[i][j] = table[i][j];
 
-  outputSingleton[NB] = -FUZZY_OUTPUT_MAX;
-  outputSingleton[NS] = -FUZZY_OUTPUT_MAX * 0.5f;
-  outputSingleton[Z]  = 0.0f;
-  outputSingleton[PS] =  FUZZY_OUTPUT_MAX * 0.5f;
-  outputSingleton[PB] =  FUZZY_OUTPUT_MAX;
+  outputSingleton[NEG_BIG]   = -FUZZY_OUTPUT_MAX;
+  outputSingleton[NEG_SMALL] = -FUZZY_OUTPUT_MAX * 0.5f;
+  outputSingleton[ZERO]      = 0.0f;
+  outputSingleton[POS_SMALL] =  FUZZY_OUTPUT_MAX * 0.5f;
+  outputSingleton[POS_BIG]   =  FUZZY_OUTPUT_MAX;
 }
 
 float FuzzyController::triangular(float x, float a, float b, float c) {
@@ -36,19 +39,19 @@ float FuzzyController::triangular(float x, float a, float b, float c) {
 
 void FuzzyController::fuzzify(float x, float range, float membership[NUM_LEVELS]) {
   // Clamp to the defined universe so inputs beyond it still saturate
-  // at "fully NB" or "fully PB" instead of returning all zeros.
+  // at "fully NEG_BIG" or "fully POS_BIG" instead of returning all zeros.
   if (x < -range) x = -range;
   if (x >  range) x =  range;
 
   float half = range * 0.5f;
 
   // Centers: -range, -half, 0, +half, +range. Each set's "shoulders"
-  // extend past the universe edge so NB/PB saturate to 1.0 at the ends.
-  membership[NB] = triangular(x, -range - 1, -range, -half);
-  membership[NS] = triangular(x, -range, -half, 0);
-  membership[Z]  = triangular(x, -half, 0, half);
-  membership[PS] = triangular(x, 0, half, range);
-  membership[PB] = triangular(x, half, range, range + 1);
+  // extend past the universe edge so NEG_BIG/POS_BIG saturate to 1.0 at the ends.
+  membership[NEG_BIG]   = triangular(x, -range - 1, -range, -half);
+  membership[NEG_SMALL] = triangular(x, -range, -half, 0);
+  membership[ZERO]      = triangular(x, -half, 0, half);
+  membership[POS_SMALL] = triangular(x, 0, half, range);
+  membership[POS_BIG]   = triangular(x, half, range, range + 1);
 }
 
 float FuzzyController::compute(float error, float errorRate) {
@@ -66,7 +69,8 @@ float FuzzyController::compute(float error, float errorRate) {
       if (mRate[j] <= 0.0f) continue;
 
       // Mamdani AND = min of the two membership degrees (rule firing strength)
-      float strength = min(mErr[i], mRate[j]);
+      // Using fmin() safely handles the float comparison without scope errors
+      float strength = fmin(mErr[i], mRate[j]);
       Level outLevel = ruleTable[i][j];
 
       numerator   += strength * outputSingleton[outLevel];

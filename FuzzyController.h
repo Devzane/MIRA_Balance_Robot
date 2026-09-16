@@ -26,7 +26,7 @@ public:
   float compute(float error, float errorRate);
 
 private:
-  enum Level { NB = 0, NS, Z, PS, PB, NUM_LEVELS };
+  enum Level { NEG_BIG = 0, NEG_SMALL, ZERO, POS_SMALL, POS_BIG, NUM_LEVELS };
 
   // Triangular membership function: 0 outside [a,c], peaks at b.
   float triangular(float x, float a, float b, float c);
