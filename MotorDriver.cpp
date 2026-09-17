@@ -2,10 +2,24 @@
 #include "MotorDriver.h"
 #include "Config.h"
 
-// Notice we changed 'pwmChannel' to 'enPin' here
+// Notice we use 'enPin' instead of 'pwmChannel' for ESP32 V3
 static void setOneMotor(int in1, int in2, int enPin, float speed) {
-  bool forward = speed >= 0;
+  // If the fuzzy controller says 0, cut the power completely
+  if (speed == 0) {
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, LOW);
+    ledcWrite(enPin, 0);
+    return;
+  }
+
+  bool forward = speed > 0;
   int pwmVal = (int)fabs(speed);
+  
+  // --- THE DEADBAND FIX ---
+  // The L298N needs at least ~60 PWM to overcome physical friction.
+  int deadbandOffset = 60; 
+  pwmVal = pwmVal + deadbandOffset;
+
   if (pwmVal > 255) pwmVal = 255;
 
   digitalWrite(in1, forward ? HIGH : LOW);
@@ -29,8 +43,8 @@ void motorInit() {
 }
 
 void motorSetSpeed(float speed) {
-  // If your robot drives itself the WRONG way, flip the sign here
-  // We now pass the EN pins instead of the old channels
+  // If your robot drives itself the WRONG way (pushes itself over),
+  // change 'speed' to '-speed' on both of these lines.
   setOneMotor(MOTOR_A_IN1, MOTOR_A_IN2, MOTOR_A_EN, speed);
   setOneMotor(MOTOR_B_IN1, MOTOR_B_IN2, MOTOR_B_EN, speed);
 }

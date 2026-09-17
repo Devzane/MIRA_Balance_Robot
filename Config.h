@@ -63,7 +63,7 @@
 // Robot's target (balance) angle in degrees, as reported by getAngle().
 // If your robot leans consistently to one side at rest, adjust this
 // FIRST before touching anything else.
-#define SETPOINT_ANGLE 0.0f
+#define SETPOINT_ANGLE -3.3f
 
 // Angle beyond which we consider the robot "fallen" and cut the motors,
 // instead of fighting a lost cause and burning out the driver/motors.
